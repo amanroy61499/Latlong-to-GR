@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>LatLong to GR Converter</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #f2f6ef;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.container {
+  background: #cfe6b8;
+  padding: 20px;
+  border-radius: 10px;
+  width: 350px;
+}
+
+input, button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  font-size: 16px;
+}
+
+button {
+  background: #2d6cdf;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+h2 {
+  text-align: center;
+}
+
+.status {
+  color: red;
+  font-size: 14px;
+  margin-top: 5px;
+}
+</style>
+
+</head>
+<body>
+
+<div class="container">
+
+<h2>LatLong → GR Converter</h2>
+
+<label>Latitude</label>
+<input id="lat">
+
+<label>Longitude</label>
+<input id="lon">
+
+<button onclick="findLocation()">📍 Find My Location</button>
+
+<button onclick="convert()">Convert</button>
+
+<label>Easting (X)</label>
+<input id="x" readonly>
+
+<label>Northing (Y)</label>
+<input id="y" readonly>
+
+<label>UTM Zone</label>
+<input id="zone" readonly>
+
+<div id="status" class="status"></div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+
+<script>
+
+function findLocation() {
+  const status = document.getElementById("status");
+  status.innerText = "Getting location...";
+
+  if (!navigator.geolocation) {
+    status.innerText = "Geolocation not supported";
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    function(position) {
+      document.getElementById("lat").value = position.coords.latitude;
+      document.getElementById("lon").value = position.coords.longitude;
+      status.innerText = "Location loaded ✓";
+    },
+    function(error) {
+      status.innerText = "Location blocked. Allow permission.";
+    },
+    { enableHighAccuracy: true }
+  );
+}
+
+function convert() {
+  const lat = parseFloat(document.getElementById("lat").value);
+  const lon = parseFloat(document.getElementById("lon").value);
+
+  if (isNaN(lat) || isNaN(lon)) {
+    alert("Enter valid coordinates");
+    return;
+  }
+
+  // Auto UTM zone (DSM uses WGS84)
+  const zone = Math.floor((lon + 180) / 6) + 1;
+
+  const wgs84 = "+proj=longlat +datum=WGS84 +no_defs";
+  const utm = `+proj=utm +zone=${zone} +datum=WGS84 +units=m +no_defs`;
+
+  const result = proj4(wgs84, utm, [lon, lat]);
+
+  const easting = result[0];
+  const northing = result[1];
+
+  // Convert to 100m grid squares
+  const gridE = Math.floor((easting % 100000) / 100);
+  const gridN = Math.floor((northing % 100000) / 100);
+
+  const grE = gridE.toString().padStart(3, "0");
+  const grN = gridN.toString().padStart(3, "0");
+
+  document.getElementById("x").value = grE;
+  document.getElementById("y").value = grN;
+  document.getElementById("zone").value = zone;
+}
+
+
+
+</script>
+
+</body>
+</html>
